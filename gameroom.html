@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Casino – Game Room</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>🎰 Game Room</div>
+    <div id="userinfo"></div>
+    <button id="logout">Logout</button>
+  </header>
+
+  <main class="room">
+    <section class="slot">
+      <h2>Classic 3×3 Slot</h2>
+
+      <div class="reels" id="reels">
+        <div class="reel" id="r1">🍋</div>
+        <div class="reel" id="r2">🍒</div>
+        <div class="reel" id="r3">🔔</div>
+      </div>
+
+      <div class="controls">
+        <label>Bet $
+          <input type="number" id="bet" min="1" step="1" value="10">
+        </label>
+        <button id="spin">Spin</button>
+      </div>
+      <div id="result" class="result"></div>
+
+      <details>
+        <summary>Payout table</summary>
+        <ul>
+          <li>3× 💎 = 50× bet</li>
+          <li>3× 🔔 = 20× bet</li>
+          <li>3× 🍒 = 10× bet</li>
+          <li>3× 🍋 = 5× bet</li>
+          <li>Any 2 of a kind = 2× bet</li>
+          <li>No match = 0</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth } from './assets/js/auth.js';
+    import { Storage } from './assets/js/storage.js';
+    import { Slots } from './assets/js/slots.js';
+    import { $ } from './assets/js/ui.js';
+
+    const me = auth.requirePlayer(); // redirects if not logged in
+    const balanceEl = document.createElement('span');
+
+    function renderUserInfo() {
+      const fresh = Storage.getUser(me.username); // re-read, balance may have changed
+      balanceEl.textContent = `Balance: $${fresh.balance}`;
+      $('#userinfo').innerHTML = `Player: <strong>${fresh.username}</strong> • `;
+      $('#userinfo').appendChild(balanceEl);
+    }
+
+    renderUserInfo();
+
+    $('#logout').onclick = () => { auth.logout(); location.href = 'index.html'; };
+
+    $('#spin').onclick = () => {
+      const bet = Math.max(1, Math.floor(Number($('#bet').value || 1)));
+      const user = Storage.getUser(me.username);
+      if (bet > user.balance) return alert('Insufficient balance.');
+      const outcome = Slots.spin(bet); // {symbols:[...], delta, payout, msg}
+
+      // Apply game outcome to the player's account
+      const newBal = user.balance + outcome.delta;
+      Storage.updateUser(user.username, { balance: newBal });
+
+      // Animate reels + show result
+      const [a,b,c] = outcome.symbols;
+      $('#r1').textContent = a; $('#r2').textContent = b; $('#r3').textContent = c;
+      $('#result').textContent = `${outcome.msg} (Δ ${outcome.delta >= 0 ? '+' : ''}${outcome.delta}) — New balance: $${newBal}`;
+
+      renderUserInfo();
+    };
+  </script>
+</body>
+</html>
