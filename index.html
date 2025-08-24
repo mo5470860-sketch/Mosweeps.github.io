@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Casino – Login</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="center">
+  <div class="card">
+    <h1>🎰 Casino Login</h1>
+    <form id="loginForm">
+      <label>Username<input id="username" required maxlength="24" /></label>
+      <label>Password<input id="password" type="password" required /></label>
+      <button type="submit">Log in</button>
+    </form>
+
+    <details>
+      <summary>Need an account?</summary>
+      <form id="signupForm">
+        <label>Username<input id="su-username" required maxlength="24" /></label>
+        <label>Password<input id="su-password" type="password" required /></label>
+        <label>Starting Balance ($)
+          <input id="su-balance" type="number" min="0" step="1" value="1000" required />
+        </label>
+        <button type="submit">Create player</button>
+      </form>
+    </details>
+    <p class="muted">Admin? Use <code>admin / admin123</code> (default; change in admin panel).</p>
+  </div>
+
+  <script type="module">
+    import { auth } from './assets/js/auth.js';
+    import { Storage } from './assets/js/storage.js';
+
+    // Seed default admin if missing
+    Storage.seed();
+
+    // If already logged in, go straight to room / admin
+    const me = auth.currentUser();
+    if (me) location.href = me.role === 'admin' ? 'admin.html' : 'gameroom.html';
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const ok = await auth.login(
+        document.getElementById('username').value.trim(),
+        document.getElementById('password').value
+      );
+      if (!ok) return alert('Invalid credentials.');
+      const user = auth.currentUser();
+      location.href = user.role === 'admin' ? 'admin.html' : 'gameroom.html';
+    });
+
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await auth.signup(
+          document.getElementById('su-username').value.trim(),
+          document.getElementById('su-password').value,
+          Number(document.getElementById('su-balance').value)
+        );
+        alert('Player created. Please log in.');
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  </script>
+</body>
+</html>
