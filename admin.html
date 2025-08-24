@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Casino – Admin</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>🛠️ Admin Panel</div>
+    <button id="logout">Logout</button>
+  </header>
+
+  <main class="admin">
+    <section>
+      <h2>Create / Edit Player</h2>
+      <form id="playerForm">
+        <label>Username <input id="u" required maxlength="24" /></label>
+        <label>Password <input id="p" required /></label>
+        <label>Balance $ <input id="b" type="number" min="0" step="1" value="1000" required /></label>
+        <label>Role
+          <select id="r">
+            <option value="player">player</option>
+            <option value="admin">admin</option>
+          </select>
+        </label>
+        <button type="submit">Save</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Players</h2>
+      <table id="grid">
+        <thead><tr><th>User</th><th>Role</th><th>Balance</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth } from './assets/js/auth.js';
+    import { Storage } from './assets/js/storage.js';
+    import { $ } from './assets/js/ui.js';
+
+    const me = auth.requireAdmin();
+
+    $('#logout').onclick = () => { auth.logout(); location.href = 'index.html'; };
+
+    function draw() {
+      const tbody = $('#grid tbody'); tbody.innerHTML = '';
+      Storage.listUsers().forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u.username}</td><td>${u.role}</td><td>$${u.balance}</td>
+                        <td>
+                          <button data-ed="${u.username}">Edit</button>
+                          <button data-del="${u.username}" class="danger">Delete</button>
+                        </td>`;
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-ed]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const u = Storage.getUser(btn.dataset.ed);
+          $('#u').value = u.username;
+          $('#p').value = ''; // require new password to change
+          $('#b').value = u.balance;
+          $('#r').value = u.role;
+        });
+      });
+      tbody.querySelectorAll('[data-del]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (!confirm('Delete player?')) return;
+          Storage.deleteUser(btn.dataset.del);
+          draw();
+        });
+      });
+    }
+    draw();
+
+    $('#playerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = $('#u').value.trim();
+      const pass = $('#p').value.trim();
+      const balance = Math.max(0, Math.floor(Number($('#b').value || 0)));
+      const role = $('#r').value;
+
+      const exists = Storage.getUser(username);
+      if (exists) {
+        const payload = { balance, role };
+        if (pass) payload.passwordHash = await auth.hash(pass);
+        Storage.updateUser(username, payload);
+      } else {
+        await Storage.createUser({ username, password: pass, balance, role });
+      }
+      alert('Saved.');
+      e.target.reset();
+      draw();
+    });
+  </script>
+</body>
+</html>
